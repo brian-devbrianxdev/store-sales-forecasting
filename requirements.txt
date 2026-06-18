@@ -1,0 +1,17 @@
+# Core runtime (ensemble blend + config). Enough to run `store-sales blend`.
+numpy
+pandas
+pyyaml
+
+# Training-leg dependencies (CPU/GPU). Install to retrain the legs.
+lightgbm
+catboost
+xgboost
+darts
+torch
+scikit-learn
+tqdm
+pyarrow
+
+# The Chronos-2 leg (models/chronos2*.py) is NOT covered here: it requires a
+# separate Python 3.11 environment with chronos-forecasting>=2 (see README).

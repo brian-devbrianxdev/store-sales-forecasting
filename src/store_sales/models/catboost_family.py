@@ -1,59 +1,50 @@
 """CatBoost per-horizon family member for ensemble diversity.
 
-Reuses `lgbm_regularized`'s `build_panel` and `select_features_for_h` for
-identical features and leakage-aware per-horizon feature filtering. The model
-is CatBoostRegressor with RMSE loss on log1p(sales) — aligned with RMSLE.
+Reuses the v8 leg's :func:`~store_sales.models.lgbm_regularized.build_panel` and
+:func:`~store_sales.features.lgbm_features.select_features_for_h` for identical
+features and leakage-aware per-horizon filtering. The model is
+``CatBoostRegressor`` with RMSE loss on ``log1p(sales)`` — aligned with RMSLE.
 
-Why CatBoost: genuinely different inductive bias from LightGBM (oblivious
-trees, different categorical handling, different boosting dynamics). Adds
-decorrelated errors that compound with the LightGBM legs in blends.
+Why CatBoost: a genuinely different inductive bias from LightGBM (oblivious
+trees, different categorical handling), adding decorrelated errors that compound
+with the LightGBM legs in blends.
 
 Usage:
-    python src/catboost_family.py --seeds 2 --suffix cat
+    store-sales train catboost --seeds 2 --suffix cat
 """
 from __future__ import annotations
 
 import argparse
 import time
 import warnings
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from catboost import CatBoostRegressor, Pool
 
-import lgbm_regularized as lgbm
+from .. import paths
+from ..config import get_config
+from . import lgbm_regularized as lgbm
 
 warnings.filterwarnings("ignore")
 
-ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / "data"
-OUT = ROOT / "submissions"
+_cfg = get_config()
+DATA = paths.DATA
+OUT = paths.SUBMISSIONS
 
 HORIZON = lgbm.HORIZON
+_CAT_PARAMS = dict(_cfg.catboost.params)
+_SEEDS_POOL = list(_cfg.catboost.seeds_pool)
 
 
 def cat_params(seed: int) -> dict:
-    # Restored to depth=6 + iterations=2500 per plan B.1 (2026-05-18).
-    # Smoke at depth=6 had h=16 val 0.416 vs v8 0.430; full run pursued
-    # for orthogonal-bias diversification.
-    return dict(
-        iterations=2500,
-        depth=6,
-        l2_leaf_reg=5.0,
-        learning_rate=0.05,
-        loss_function="RMSE",
-        random_seed=seed,
-        thread_count=-1,
-        verbose=300,
-        bootstrap_type="Bernoulli",
-        subsample=0.85,
-        rsm=0.7,
-    )
+    """Return the CatBoost params dict for a given seed (from config)."""
+    return dict(_CAT_PARAMS, random_seed=seed)
 
 
 def train_cat_es(X_fit, y_fit, X_val, y_val, cat_cols, *, seed,
                   iterations=1500, patience=120):
+    """Train CatBoost with early stopping; returns the best-iteration model."""
     p = cat_params(seed) | dict(iterations=iterations,
                                   early_stopping_rounds=patience)
     cat_idx = [X_fit.columns.get_loc(c) for c in cat_cols if c in X_fit.columns]
@@ -65,6 +56,7 @@ def train_cat_es(X_fit, y_fit, X_val, y_val, cat_cols, *, seed,
 
 
 def train_cat_fixed(X_fit, y_fit, cat_cols, *, seed, iterations):
+    """Train CatBoost for a fixed number of iterations (no early stop)."""
     p = cat_params(seed) | dict(iterations=iterations)
     cat_idx = [X_fit.columns.get_loc(c) for c in cat_cols if c in X_fit.columns]
     pool = Pool(X_fit, y_fit, cat_features=cat_idx)
@@ -73,18 +65,18 @@ def train_cat_fixed(X_fit, y_fit, cat_cols, *, seed, iterations):
     return m
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--seeds", type=int, default=2,
-                     help="seeds per horizon (default 2 — catboost slower than lgbm)")
+def main(argv: list[str] | None = None) -> None:
+    """CLI entry point for the CatBoost family member."""
+    ap = argparse.ArgumentParser(description="CatBoost per-horizon family member")
+    ap.add_argument("--seeds", type=int, default=_cfg.catboost.default_seeds,
+                     help="seeds per horizon (catboost slower than lgbm)")
     ap.add_argument("--horizons", default=None,
                      help="csv subset, e.g. '1,8,16' for smoke test")
-    ap.add_argument("--suffix", default="cat")
+    ap.add_argument("--suffix", default=_cfg.catboost.default_suffix)
     ap.add_argument("--skip-refit", action="store_true")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
-    seeds_pool = [42, 1337, 2026, 7, 99]
-    seeds = seeds_pool[: args.seeds]
+    seeds = _SEEDS_POOL[: args.seeds]
     horizons = ([int(x) for x in args.horizons.split(",")]
                  if args.horizons else list(range(1, HORIZON + 1)))
 

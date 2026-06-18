@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "store-sales-forecasting"
+version = "1.0.0"
+description = "Modular pipeline for the Kaggle Store Sales — Time Series Forecasting competition"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "pandas",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+# Heavy training-leg dependencies. The Chronos-2 leg additionally needs its own
+# Python 3.11 venv with chronos-forecasting>=2 (see README).
+train = [
+    "lightgbm",
+    "catboost",
+    "xgboost",
+    "darts",
+    "torch",
+    "scikit-learn",
+    "tqdm",
+    "pyarrow",
+]
+
+[project.scripts]
+store-sales = "store_sales.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+# config.yaml lives at the repo root and is located via store_sales.paths.
