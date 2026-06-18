@@ -56,13 +56,19 @@ def _cmd_train(leg: str, rest: list[str]) -> None:
 
 
 def _cmd_blend(action: str) -> None:
-    """Dispatch a ``blend build`` / ``blend verify`` invocation."""
+    """Dispatch a ``blend <action>`` invocation."""
     from .ensemble import build
     if action == "build":
         build.run_build()
-    else:
+    elif action == "verify":
         ok = build.verify()
         sys.exit(0 if ok else 1)
+    elif action == "oilhol-swap":
+        from .ensemble import alternates
+        alternates.run_oilhol_swap()
+    elif action == "positive-hedge":
+        from .ensemble import alternates
+        alternates.run_positive_hedge()
 
 
 def _cmd_run_all() -> None:
@@ -107,8 +113,9 @@ def main(argv: list[str] | None = None) -> None:
         "chronos2", "chronos2-cov",
     ])
 
-    p_blend = sub.add_parser("blend", help="build or verify the ensemble blend")
-    p_blend.add_argument("action", choices=["build", "verify"])
+    p_blend = sub.add_parser("blend", help="build/verify the ensemble blend or alternates")
+    p_blend.add_argument("action",
+                         choices=["build", "verify", "oilhol-swap", "positive-hedge"])
 
     sub.add_parser("run-all", help="train every in-process leg then build the blend")
 

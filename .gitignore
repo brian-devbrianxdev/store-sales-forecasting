@@ -12,6 +12,7 @@ dist/
 
 # Virtual environments
 .venv/
+.venv_chronos2/
 venv/
 env/
 .env
@@ -28,3 +29,10 @@ lightning_logs/
 .DS_Store
 .idea/
 .vscode/
+submissions_backup_*/
+
+# Local clone of the upstream reference repo (for audit only)
+store-sales-forecasting/
+
+# Regenerated artifact for the darts "weighted" variant (rebuilt on demand)
+data/floor_per_row.parquet

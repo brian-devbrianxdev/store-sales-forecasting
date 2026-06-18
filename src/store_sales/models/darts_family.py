@@ -251,7 +251,9 @@ def build_data(train, test, transaction, oil, store, work_days, national_holiday
     data[["work_day", *SELECTED_HOLIDAYS]] = data[["work_day", *SELECTED_HOLIDAYS]].fillna(0)
 
     if s.floor_feature or s.sample_weight_floor:
-        floor = pd.read_parquet(PATH / "floor_per_row.parquet")[
+        from ..features.floor import ensure_floor_parquet
+        floor_path = ensure_floor_parquet(train, PATH)
+        floor = pd.read_parquet(floor_path)[
             ["date", "store_nbr", "family", "cell_floor"]
         ]
         data = data.merge(floor, on=["date", "store_nbr", "family"], how="left")
