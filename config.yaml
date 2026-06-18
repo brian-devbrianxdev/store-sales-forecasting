@@ -189,8 +189,18 @@ chronos:
 
 # -----------------------------------------------------------------------------
 # Ensemble — minimum-variance blend: ensemble/blend.py, ensemble/build.py
-# The sigma values are each leg's standalone Kaggle leaderboard RMSLE, obtained
-# by submitting that leg's CSV (notebook section 4.2). Replace with your own.
+#
+# HOW TO FILL THE SIGMA VALUES
+# Every `*_sigma` below is a single number: the PUBLIC-LEADERBOARD RMSLE that
+# Kaggle returns when you submit ONE specific CSV. You cannot compute it locally
+# (the test labels are private). Procedure (see notebook §4.2):
+#   1. Train the legs   -> the CSVs land in submissions/.
+#   2. Submit each CSV  -> https://www.kaggle.com/competitions/
+#                          store-sales-time-series-forecasting/submit
+#   3. Read the *Score* column -> that number is this leg's sigma.
+# The file to submit for each sigma is named in the inline comment next to it
+# (and matches the family_files / leg_files maps below). The numbers shipped
+# here are the upstream reference scores — REPLACE them with your own.
 # -----------------------------------------------------------------------------
 ensemble:
   family_alpha: 0.5
@@ -199,7 +209,7 @@ ensemble:
   # Alternate/ad-hoc blends (see ensemble/alternates.py).
   # The oil+holiday Chronos-2 covariate leg used by the oilhol swap (needs .venv_chronos2).
   cov_oilhol_file: submission_chronos2_cov_promo_oil_hol.csv
-  cov_oilhol_sigma: 0.402
+  cov_oilhol_sigma: 0.402   # submit submission_chronos2_cov_promo_oil_hol.csv
   swap_out_file: submission_champ_oilholcov_swap.csv
   hedge_out_file: submission_positive_4way_fam_cov_tsm.csv
   # The 6 gradient-boosted-tree submissions making up the `family` sub-blend.
@@ -210,21 +220,23 @@ ensemble:
     sub3: submission_darts_lgbm_subsampled_3seed.csv
     cat_deep: submission_darts_cat_deeper.csv
     weighted: submission_darts_lgbm_w.csv
+  # sigma = Kaggle LB score of submitting each darts member CSV (see family_files).
   family_sigma:
-    base: 0.38345
-    deeper: 0.38098
-    xgb: 0.38231
-    sub3: 0.38381
-    cat_deep: 0.38182
-    weighted: 0.38344
+    base: 0.38345        # submit submission_darts_lgbm.csv
+    deeper: 0.38098      # submit submission_darts_lgbm_deeper.csv
+    xgb: 0.38231         # submit submission_darts_xgb_lgbm.csv
+    sub3: 0.38381        # submit submission_darts_lgbm_subsampled_3seed.csv
+    cat_deep: 0.38182    # submit submission_darts_cat_deeper.csv
+    weighted: 0.38344    # submit submission_darts_lgbm_w.csv
   # The 3 single-CSV legs of the final 4-way blend (the 4th is `family`).
   leg_files:
     chronos2-cov: submission_chronos2_cov_promo.csv
     lgbm-reg: submission_v8_reg.csv
     tsmixer: submission_tsmixer_tuned.csv
   # LB-anchored sigma for each of the 4 legs (order defines blend leg order).
+  # sigma = Kaggle LB score of submitting the named CSV.
   leg_sigma:
-    family: 0.37856
-    chronos2-cov: 0.40100
-    lgbm-reg: 0.48297
-    tsmixer: 0.38191
+    family: 0.37856        # submit submission_family.csv (the family sub-blend, from `blend build`)
+    chronos2-cov: 0.40100  # submit submission_chronos2_cov_promo.csv
+    lgbm-reg: 0.48297      # submit submission_v8_reg.csv
+    tsmixer: 0.38191       # submit submission_tsmixer_tuned.csv
