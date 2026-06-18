@@ -1,10 +1,4 @@
-# Raw competition data (download from Kaggle: store-sales-time-series-forecasting)
-data/*
-# ...but train.csv is tracked via Git LFS
-!data/train.csv
-
-# Generated submission files
-submissions/
+# Note: data/train.csv is tracked via Git LFS (see .gitattributes)
 
 # Python
 __pycache__/
