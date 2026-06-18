@@ -36,3 +36,6 @@ store-sales-forecasting/
 
 # Regenerated artifact for the darts "weighted" variant (rebuilt on demand)
 data/floor_per_row.parquet
+
+# Generated prediction outputs (produced by the legs + blend; not tracked)
+submissions/
