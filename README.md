@@ -40,7 +40,6 @@ src/store_sales/
   ensemble/
     blend.py                 # min-variance math (cov reconstruction + weights)
     build.py                 # build the final 4-way + family CSVs; verify byte-exact
-    alternates.py            # oil+holiday swap & positive-weight hedge blends
 store_sales_forecasting_local.ipynb   # Vietnamese course report; orchestrates the CLI
 data/                        # raw competition CSVs (train.csv via Git LFS)
 submissions/                 # per-leg prediction CSVs + the final blend
@@ -79,8 +78,6 @@ store-sales train catboost
 # build / check the ensemble
 store-sales blend build        # write submission_family.csv + the final 4-way CSV
 store-sales blend verify       # assert byte-exact reproduction of the committed blend
-store-sales blend oilhol-swap  # alternate: champion with the oil+holiday Chronos leg
-store-sales blend positive-hedge
 
 store-sales run-all            # every in-process leg (darts + v8 + tsmixer), then build
 ```

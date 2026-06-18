@@ -124,10 +124,6 @@ class Ensemble:
     family_sigma: dict[str, float]
     leg_files: dict[str, str]
     leg_sigma: dict[str, float]
-    cov_oilhol_file: str
-    cov_oilhol_sigma: float
-    swap_out_file: str
-    hedge_out_file: str
 
 
 @dataclass(frozen=True)

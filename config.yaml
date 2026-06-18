@@ -206,12 +206,6 @@ ensemble:
   family_alpha: 0.5
   family_out_file: submission_family.csv
   out_file: submission_fam_cov_v8_tsmTuned_4way.csv
-  # Alternate/ad-hoc blends (see ensemble/alternates.py).
-  # The oil+holiday Chronos-2 covariate leg used by the oilhol swap (needs .venv_chronos2).
-  cov_oilhol_file: submission_chronos2_cov_promo_oil_hol.csv
-  cov_oilhol_sigma: 0.402   # submit submission_chronos2_cov_promo_oil_hol.csv
-  swap_out_file: submission_champ_oilholcov_swap.csv
-  hedge_out_file: submission_positive_4way_fam_cov_tsm.csv
   # The 6 gradient-boosted-tree submissions making up the `family` sub-blend.
   family_files:
     base: submission_darts_lgbm.csv
