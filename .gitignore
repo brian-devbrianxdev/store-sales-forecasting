@@ -1,5 +1,7 @@
 # Raw competition data (download from Kaggle: store-sales-time-series-forecasting)
-data/
+data/*
+# ...but train.csv is tracked via Git LFS
+!data/train.csv
 
 # Generated submission files
 submissions/
