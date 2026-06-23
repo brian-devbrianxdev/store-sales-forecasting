@@ -26,6 +26,12 @@ from .. import paths
 from ..config import get_config
 from ..io.data_loading import load_raw_frames
 from ..features.calendar import national_holiday_dates
+from ..features.common_features import (
+    OIL_DYNAMIC_COLS,
+    HOLIDAY_EXTRA_COLS,
+    add_oil_dynamics,
+    holiday_extra_frame,
+)
 
 _cfg = get_config()
 DATA = paths.DATA
@@ -69,6 +75,13 @@ def build_long(tr: pd.DataFrame, te: pd.DataFrame, oil: pd.DataFrame,
     oil = oil.set_index("date").reindex(cal).rename_axis("date").reset_index()
     oil["dcoilwtico"] = oil["dcoilwtico"].ffill().bfill()
     full = full.merge(oil, on="date", how="left")
+    # Advanced FE (gated): shared oil dynamics + holiday distances/transferred
+    # flag. Default off keeps this leg byte-identical. The oil fill stays leg-
+    # local (ffill/bfill) so an A/B isolates the *feature* effect, not the fill.
+    if _cfg.neural.use_advanced_feats:
+        oil_dyn = add_oil_dynamics(oil, price_col="dcoilwtico")
+        full = full.merge(oil_dyn[["date", *OIL_DYNAMIC_COLS]], on="date", how="left")
+        full = full.merge(holiday_extra_frame(cal, hol), on="date", how="left")
     # calendar
     full["dow"] = full["date"].dt.dayofweek.astype(float)
     full["month"] = full["date"].dt.month.astype(float)
@@ -115,6 +128,8 @@ def make_series(full: pd.DataFrame, anchor: pd.Timestamp, model_name: str,
     base_fc = ["onpromotion", "dcoilwtico", "dow", "month", "day", "payday", "nathol"]
     use_foy = _cfg.neural.use_foy
     futcov_cols = (base_fc + foy) if use_foy else base_fc
+    if _cfg.neural.use_advanced_feats:
+        futcov_cols = futcov_cols + OIL_DYNAMIC_COLS + HOLIDAY_EXTRA_COLS
     for c in futcov_cols:
         df[c] = df[c].astype(np.float32)
     for c in ["family", "city", "state", "type"]:

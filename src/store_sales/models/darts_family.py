@@ -29,6 +29,15 @@ from tqdm import tqdm
 from .. import paths
 from ..config import get_config
 from ..io.data_loading import load_raw_frames
+from ..features.common_features import (
+    OIL_DYNAMIC_COLS,
+    HOLIDAY_EXTRA_COLS,
+    SPECIAL_DIST_CAP,
+    add_oil_dynamics,
+    holiday_distance_frame,
+    national_special_dates,
+    transferred_origin_dates,
+)
 
 warnings.filterwarnings("ignore")
 
@@ -53,6 +62,10 @@ SELECTED_HOLIDAYS = list(_cfg.darts_family.selected_holidays)
 # August back-to-school surge). Coast provinces start ~May (no August surge).
 SIERRA_STATES = set(_cfg.darts_family.sierra_states)
 
+# Advanced oil/holiday FE lives in store_sales.features.common_features so the
+# neural leg can reuse the same leak-proof logic. OIL_DYNAMIC_COLS /
+# HOLIDAY_EXTRA_COLS / SPECIAL_DIST_CAP are imported above and used unchanged.
+
 
 @dataclass(frozen=True)
 class DartsSettings:
@@ -76,6 +89,7 @@ class DartsSettings:
     new_feats_famtotal: bool
     weight_scheme: str
     school_region: bool
+    advanced_feats: bool
     lags_main: int
     lags_extra: list[int]
     lags_past_covariates: list[int]
@@ -106,6 +120,7 @@ class DartsSettings:
             new_feats_famtotal=bool(merged["new_feats_famtotal"]),
             weight_scheme=str(merged["weight_scheme"]),
             school_region=bool(merged["school_region"]),
+            advanced_feats=bool(merged.get("advanced_feats", False)),
             lags_main=int(merged["lags_main"]),
             lags_extra=list(merged["lags_extra"]),
             lags_past_covariates=list(merged["lags_past_covariates"]),
@@ -154,7 +169,26 @@ def reindex_train(train: pd.DataFrame) -> tuple[pd.DataFrame, pd.Timestamp, pd.T
 
 def fill_oil(oil: pd.DataFrame, train_start: pd.Timestamp,
              test_end: pd.Timestamp) -> pd.DataFrame:
-    """Daily oil series across the full span, linearly interpolated."""
+    """Daily oil series across the full span plus backward-looking dynamics.
+
+    Steps:
+        1. Reindex onto a complete daily calendar (``train_start .. test_end``).
+        2. Time-aware interpolation of the WTI price (``method="time"``); a single
+           ``bfill`` covers the one leading gap (2013-01-01 has no quote and
+           nothing earlier to interpolate from).
+        3. Engineer dynamics — 7/28-day returns, 16/28/56-day lags, and a 28-day
+           realised-volatility regime (rolling std of daily returns).
+
+    Returns the daily ``oil`` price alongside the :data:`OIL_DYNAMIC_COLS`.
+
+    Leakage note: oil is a *future* covariate — the series is fully observed
+    through the test window, so every derived column is a deterministic,
+    strictly backward-looking transform of known values. The warm-up NaNs from
+    ``shift``/``pct_change``/``rolling`` sit only at the 2013 leading edge and are
+    handled there (lags ``bfill``, returns/vol → 0). Because oil has no interior
+    or trailing gaps, that ``bfill`` can never pull an August-2017 value
+    backwards into earlier dates.
+    """
     oil = (
         oil.merge(
             pd.DataFrame({"date": pd.date_range(train_start, test_end)}),
@@ -163,8 +197,13 @@ def fill_oil(oil: pd.DataFrame, train_start: pd.Timestamp,
         )
         .sort_values("date", ignore_index=True)
     )
-    oil.oil = oil.oil.interpolate(method="linear", limit_direction="both")
-    return oil
+    # (1+2) time-aware interpolation needs a DatetimeIndex; assign back by
+    # position (the frame is already date-sorted) and fill the lone leading gap.
+    oil["oil"] = oil.set_index("date")["oil"].interpolate(method="time").to_numpy()
+    oil["oil"] = oil["oil"].bfill()
+
+    # (3) shared backward-looking dynamics (see common_features.add_oil_dynamics).
+    return add_oil_dynamics(oil, price_col="oil")
 
 
 def fill_transactions(transaction: pd.DataFrame, train: pd.DataFrame,
@@ -184,7 +223,27 @@ def fill_transactions(transaction: pd.DataFrame, train: pd.DataFrame,
 
 def process_holidays(holiday: pd.DataFrame,
                      store: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Clean holiday descriptions and split into work-day and national tables."""
+    """Clean holiday descriptions and split into work-day and national tables.
+
+    Beyond the national-holiday dummies, the returned ``national_holidays`` frame
+    now carries two extra date-level columns:
+
+      * ``is_transferred_origin`` — the ORIGINAL date of a transferred holiday
+        (``transferred == True``). Such a date is worked rather than celebrated,
+        but often keeps a residual behavioural footprint, so we flag it explicitly
+        instead of silently dropping the row.
+      * ``is_national_special`` — any active National holiday/event date; consumed
+        by :func:`build_data` to derive the continuous distance-to-special feats.
+
+    Both are properties of the published calendar (known through 2017-12-26, well
+    past the test window) — pure future-covariate information, never sales-derived.
+    """
+    # Capture the special-day / transferred-origin date sets up front (the
+    # transferred rows are dropped below). Shared, leak-proof helpers — the
+    # filters are idempotent so calling them on the raw frame is exact.
+    origin_dates = transferred_origin_dates(holiday)
+    special_dates = national_special_dates(holiday)
+
     def _process_holiday(s):
         if "futbol" in s:
             return "futbol"
@@ -219,6 +278,22 @@ def process_holidays(holiday: pd.DataFrame,
     national_holidays = national_holidays.groupby("date").sum().reset_index()
     national_holidays = national_holidays.rename(columns={"nat_primer grito independencia": "nat_primer grito"})
 
+    # Date-level extra flags from the shared helpers (date sets built up front).
+    national_special = pd.DataFrame({"date": special_dates, "is_national_special": 1})
+    transferred_origin = pd.DataFrame({"date": origin_dates, "is_transferred_origin": 1})
+    # Outer-merge the extras so transferred-origin dates that are NOT themselves
+    # national holidays still appear as rows (with every "nat_" dummy = 0).
+    national_holidays = (
+        national_holidays
+        .merge(national_special, on="date", how="outer")
+        .merge(transferred_origin, on="date", how="outer")
+    )
+    flag_cols = ["is_national_special", "is_transferred_origin"]
+    national_holidays[flag_cols] = national_holidays[flag_cols].fillna(0).astype(int)
+    dummy_cols = [c for c in national_holidays.columns if c.startswith("nat_")]
+    national_holidays[dummy_cols] = national_holidays[dummy_cols].fillna(0)
+    national_holidays = national_holidays.sort_values("date", ignore_index=True)
+
     return work_days, national_holidays
 
 
@@ -238,7 +313,9 @@ def build_data(train, test, transaction, oil, store, work_days, national_holiday
     Returns:
         The combined long dataframe with engineered covariate columns.
     """
-    keep_national_holidays = national_holidays[["date", *SELECTED_HOLIDAYS]]
+    keep_national_holidays = national_holidays[
+        ["date", *SELECTED_HOLIDAYS, "is_transferred_origin", "is_national_special"]
+    ]
     data = (
         pd.concat([train, test], axis=0, ignore_index=True)
         .merge(transaction, on=["date", "store_nbr"], how="left")
@@ -248,7 +325,8 @@ def build_data(train, test, transaction, oil, store, work_days, national_holiday
         .merge(keep_national_holidays, on="date", how="left")
         .sort_values(["date", "store_nbr", "family"], ignore_index=True)
     )
-    data[["work_day", *SELECTED_HOLIDAYS]] = data[["work_day", *SELECTED_HOLIDAYS]].fillna(0)
+    fill0 = ["work_day", *SELECTED_HOLIDAYS, "is_transferred_origin", "is_national_special"]
+    data[fill0] = data[fill0].fillna(0)
 
     if s.floor_feature or s.sample_weight_floor:
         from ..features.floor import ensure_floor_parquet
@@ -266,6 +344,15 @@ def build_data(train, test, transaction, oil, store, work_days, national_holiday
     data["day_of_year"] = data.date.dt.dayofyear
     data["week_of_year"] = data.date.dt.isocalendar().week.astype(int)
     data["date_index"] = data.date.factorize()[0]
+
+    # Continuous distance-to-national-special-day features via the shared helper
+    # (future-covariate safe — the holiday calendar is known in advance). The
+    # special-day set is the is_national_special flag already merged onto data.
+    special_dates = data.loc[data["is_national_special"] > 0, "date"].unique()
+    dist = holiday_distance_frame(
+        data["date"].drop_duplicates().sort_values(), special_dates,
+    )
+    data = data.merge(dist, on="date", how="left")
 
     if s.school_region:
         sierra = data.state.isin(SIERRA_STATES).to_numpy(dtype=np.float32)
@@ -565,6 +652,15 @@ def run(s: DartsSettings) -> None:
         "day", "month", "year", "day_of_week", "day_of_year", "week_of_year", "date_index",
         "work_day", *SELECTED_HOLIDAYS,
     ]
+    if s.advanced_feats:
+        # Per-variant gate. The oil-dynamics / holiday-distance columns are always
+        # computed (fill_oil / build_data) but only enter the model when enabled.
+        # Helps shallow GBTs (base/xgb/subsampled); hurts the deep ones
+        # (deeper/cat_deep, depth-8) and weighted — so those keep it off. With the
+        # gate off, the model inputs are identical to the pre-FE leg (byte-exact).
+        future_cols += [*OIL_DYNAMIC_COLS, *HOLIDAY_EXTRA_COLS]
+        print(f">>> ADVANCED_FEATS=1 — added oil-dynamics + holiday-distance "
+              f"({len(future_cols)} future cols)")
     if s.school_region:
         future_cols += ["sierra_school_ramp", "sierra_late_summer"]
         print(f">>> SCHOOL_REGION=1 — added Sierra ramp/late-summer feats ({len(future_cols)} future cols)")

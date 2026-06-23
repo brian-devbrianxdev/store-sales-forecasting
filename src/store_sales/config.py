@@ -106,6 +106,9 @@ class Neural:
     tsmixer: dict[str, Any]
     tide: dict[str, Any]
     nhits: dict[str, Any]
+    # A/B gate for the shared advanced oil/holiday FE (common_features). Default
+    # False keeps the champion TSMixer leg byte-identical; flip to A/B test.
+    use_advanced_feats: bool = False
 
 
 @dataclass(frozen=True)

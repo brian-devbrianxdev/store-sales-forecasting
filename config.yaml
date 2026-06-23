@@ -118,6 +118,7 @@ darts_family:
     new_feats_famtotal: true
     weight_scheme: sqrt
     school_region: false
+    advanced_feats: true            # shared oil-dynamics + holiday-distance FE (per-variant gate)
     lags_main: 56
     lags_extra: [7, 365, 730]
     lags_past_covariates: [-17, -18, -19, -20, -21, -22, -23]
@@ -128,6 +129,7 @@ darts_family:
     base: {}
     deeper:
       depth: 8
+      advanced_feats: false         # depth-8 overfits the exogenous FE (LB +0.0023) → off
       out_name: submission_darts_lgbm_deeper.csv
     xgb:
       include_xgb: true
@@ -140,10 +142,12 @@ darts_family:
     weighted:
       sample_weight_floor: true
       weight_scheme: sqrt
+      advanced_feats: false         # FE regressed this variant (LB +0.0024) → off
       out_name: submission_darts_lgbm_w.csv
     cat_deep:
       cat_only: true
       depth: 8
+      advanced_feats: false         # CatBoost depth-8 worst regression (LB +0.0049) → off
       out_name: submission_darts_cat_deeper.csv
 
 # -----------------------------------------------------------------------------
@@ -156,6 +160,7 @@ neural:
   input_chunk_length: 90          # ICL
   batch_size: 1024
   use_foy: false                  # Fourier day-of-year harmonics
+  use_advanced_feats: true        # shared oil-dynamics + holiday-distance FE (A/B gate)
   out_name_template: "submission_{model}.csv"
   tuned_out_name: submission_tsmixer_tuned.csv
   tsmixer:
@@ -215,13 +220,15 @@ ensemble:
     cat_deep: submission_darts_cat_deeper.csv
     weighted: submission_darts_lgbm_w.csv
   # sigma = Kaggle LB score of submitting each darts member CSV (see family_files).
+  # Selective advanced-FE: base/xgb/sub3 carry oil+holiday FE (user-measured LB);
+  # deeper/cat_deep/weighted reverted to non-FE (FE regressed them) — upstream-ref σ.
   family_sigma:
-    base: 0.38345        # submit submission_darts_lgbm.csv
-    deeper: 0.38098      # submit submission_darts_lgbm_deeper.csv
-    xgb: 0.38231         # submit submission_darts_xgb_lgbm.csv
-    sub3: 0.38381        # submit submission_darts_lgbm_subsampled_3seed.csv
-    cat_deep: 0.38182    # submit submission_darts_cat_deeper.csv
-    weighted: 0.38344    # submit submission_darts_lgbm_w.csv
+    base: 0.38337        # FE on; user LB. submit submission_darts_lgbm.csv
+    deeper: 0.38098      # non-FE (reverted). submit submission_darts_lgbm_deeper.csv
+    xgb: 0.38202         # FE on; user LB. submit submission_darts_xgb_lgbm.csv
+    sub3: 0.38298        # FE on; user LB. submit submission_darts_lgbm_subsampled_3seed.csv
+    cat_deep: 0.38182    # non-FE (reverted). submit submission_darts_cat_deeper.csv
+    weighted: 0.38344    # non-FE (reverted). submit submission_darts_lgbm_w.csv
   # The 3 single-CSV legs of the final 4-way blend (the 4th is `family`).
   leg_files:
     chronos2-cov: submission_chronos2_cov_promo.csv
