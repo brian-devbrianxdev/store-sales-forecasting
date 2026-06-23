@@ -238,7 +238,7 @@ ensemble:
   # LB-anchored sigma for each of the 4 legs (order defines blend leg order).
   # sigma = Kaggle LB score of submitting the named CSV.
   leg_sigma:
-    family: 0.37856        # submit submission_family.csv (the family sub-blend, from `blend build`)
+    family: 0.38183        # submit submission_family.csv (the family sub-blend, from `blend build`)
     chronos2-cov: 0.39772  # submit submission_chronos2_cov_promo_oil_hol.csv
     lgbm-reg: 0.47682      # submit submission_v8_reg.csv
     tsmixer: 0.38191       # submit submission_tsmixer_tuned.csv
