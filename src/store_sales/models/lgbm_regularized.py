@@ -45,6 +45,10 @@ from ..features.calendar import (
     build_oil,
     build_transactions,
 )
+from ..features.common_features import (
+    add_oil_dynamics,
+    holiday_extra_frame,
+)
 from ..features.lgbm_features import (
     add_aggregate_lag_roll,
     add_days_since_first_sale,
@@ -279,7 +283,17 @@ def build_panel(cuts: Cutoffs,
             full[c] = full[c].fillna(0).astype("float32")
         print(f"  merged UMAP embeddings: {umap_cols} ({len(umap_df)} pairs)", flush=True)
     full = full.merge(oil, on="date", how="left")
+    # Add advanced oil dynamics
+    oil_dyn = add_oil_dynamics(oil, price_col="dcoilwtico")
+    dyn_cols = [c for c in oil_dyn.columns if c.startswith("oil_")]
+    full = full.merge(oil_dyn[["date"] + dyn_cols], on="date", how="left")
+    
     full = full.merge(hol_panel, on=["date", "store_nbr"], how="left")
+    # Add advanced holiday distance features
+    cal = pd.date_range(cuts.train_from, cuts.test_end, freq="D")
+    hol_extra = holiday_extra_frame(cal, d["holidays"])
+    full = full.merge(hol_extra, on="date", how="left")
+    
     full = full.merge(trans_panel, on=["date", "store_nbr"], how="left")
     for c in ["is_holiday_national", "is_event_national", "is_workday_override",
               "is_holiday_regional", "is_holiday_local",

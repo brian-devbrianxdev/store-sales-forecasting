@@ -27,7 +27,7 @@ common:
 # -----------------------------------------------------------------------------
 lgbm_v8:
   seeds_pool: [42, 1337, 2026, 7, 99]
-  default_seeds: 3                # seeds per horizon
+  default_seeds: 1                # reduced from 3 to speed up training
   fixed_iter_mult: 1.05           # final rounds = best_iter * this
   lags_daily: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
   lags_long: [28, 35, 49, 63, 91, 119, 182, 364]
@@ -47,6 +47,7 @@ lgbm_v8:
     bagging_freq: 1
     lambda_l2: 3.0
     verbose: -1
+    num_threads: 8                # explicit multi-threading
   tweedie:                        # overrides applied on top of `params`
     objective: tweedie
     tweedie_variance_power: 1.3
@@ -129,7 +130,7 @@ darts_family:
     base: {}
     deeper:
       depth: 8
-      advanced_feats: false         # depth-8 overfits the exogenous FE (LB +0.0023) → off
+      advanced_feats: false
       out_name: submission_darts_lgbm_deeper.csv
     xgb:
       include_xgb: true
@@ -142,12 +143,12 @@ darts_family:
     weighted:
       sample_weight_floor: true
       weight_scheme: sqrt
-      advanced_feats: false         # FE regressed this variant (LB +0.0024) → off
+      advanced_feats: false
       out_name: submission_darts_lgbm_w.csv
     cat_deep:
       cat_only: true
       depth: 8
-      advanced_feats: false         # CatBoost depth-8 worst regression (LB +0.0049) → off
+      advanced_feats: false
       out_name: submission_darts_cat_deeper.csv
 
 # -----------------------------------------------------------------------------
@@ -223,21 +224,21 @@ ensemble:
   # Selective advanced-FE: base/xgb/sub3 carry oil+holiday FE (user-measured LB);
   # deeper/cat_deep/weighted reverted to non-FE (FE regressed them) — upstream-ref σ.
   family_sigma:
-    base: 0.38337        # FE on; user LB. submit submission_darts_lgbm.csv
-    deeper: 0.38098      # non-FE (reverted). submit submission_darts_lgbm_deeper.csv
+    base: 0.38337        # FE on. user LB. submit submission_darts_lgbm.csv
+    deeper: 0.38098      # non-FE. submit submission_darts_lgbm_deeper.csv
     xgb: 0.38202         # FE on; user LB. submit submission_darts_xgb_lgbm.csv
     sub3: 0.38298        # FE on; user LB. submit submission_darts_lgbm_subsampled_3seed.csv
-    cat_deep: 0.38182    # non-FE (reverted). submit submission_darts_cat_deeper.csv
-    weighted: 0.38344    # non-FE (reverted). submit submission_darts_lgbm_w.csv
+    cat_deep: 0.38182    # non-FE. submit submission_darts_cat_deeper.csv
+    weighted: 0.38344    # non-FE. submit submission_darts_lgbm_w.csv
   # The 3 single-CSV legs of the final 4-way blend (the 4th is `family`).
   leg_files:
-    chronos2-cov: submission_chronos2_cov_promo.csv
+    chronos2-cov: submission_chronos2_cov_promo_oil_hol.csv
     lgbm-reg: submission_v8_reg.csv
     tsmixer: submission_tsmixer_tuned.csv
   # LB-anchored sigma for each of the 4 legs (order defines blend leg order).
   # sigma = Kaggle LB score of submitting the named CSV.
   leg_sigma:
     family: 0.37856        # submit submission_family.csv (the family sub-blend, from `blend build`)
-    chronos2-cov: 0.40100  # submit submission_chronos2_cov_promo.csv
-    lgbm-reg: 0.48297      # submit submission_v8_reg.csv
+    chronos2-cov: 0.39772  # submit submission_chronos2_cov_promo_oil_hol.csv
+    lgbm-reg: 0.47682      # submit submission_v8_reg.csv
     tsmixer: 0.38191       # submit submission_tsmixer_tuned.csv

@@ -96,6 +96,8 @@ class DartsSettings:
     lags_future_covariates: tuple[int, int]
     output_chunk_length: int
     out_name: str
+    lambda_l2: float
+    l2_leaf_reg: float
 
     @classmethod
     def from_variant(cls, name: str) -> "DartsSettings":
@@ -127,6 +129,8 @@ class DartsSettings:
             lags_future_covariates=tuple(merged["lags_future_covariates"]),
             output_chunk_length=int(merged["output_chunk_length"]),
             out_name=str(merged["out_name"]),
+            lambda_l2=float(merged.get("lambda_l2", 0.0)),
+            l2_leaf_reg=float(merged.get("l2_leaf_reg", 3.0)),
         )
 
 
@@ -580,6 +584,8 @@ def build_configs(s: DartsSettings) -> list[dict]:
     if s.bagging_fraction < 1.0 and s.bagging_freq > 0:
         lgbm_extra["bagging_fraction"] = s.bagging_fraction
         lgbm_extra["bagging_freq"] = s.bagging_freq
+    if s.lambda_l2 > 0.0:
+        lgbm_extra["lambda_l2"] = s.lambda_l2
     base_config: dict[str, Any] = {
         "random_state": s.seed,
         "lags": s.lags_main,
@@ -597,6 +603,7 @@ def build_configs(s: DartsSettings) -> list[dict]:
     if s.cat_only:
         base_config["_cls"] = CatBoostModel
         base_config["verbose"] = False
+        base_config["l2_leaf_reg"] = s.l2_leaf_reg
     else:
         base_config.update(lgbm_extra)
     configs = [base_config] + [{**base_config, "lags": lag} for lag in s.lags_extra]
