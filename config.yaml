@@ -130,6 +130,8 @@ darts_family:
     base: {}
     deeper:
       depth: 8
+      n_estimators: 200          # 2x mặc định — thêm capacity cho LightGBM depth-8
+      lr: 0.05                   # lr thấp hơn 0.065 bù cho nhiều vòng
       advanced_feats: false
       out_name: submission_darts_lgbm_deeper.csv
     xgb:
@@ -227,7 +229,7 @@ ensemble:
   # deeper/cat_deep/weighted reverted to non-FE (FE regressed them) — upstream-ref σ.
   family_sigma:
     base: 0.38337        # FE on. user LB. submit submission_darts_lgbm.csv
-    deeper: 0.38269      # non-FE. submit submission_darts_lgbm_deeper.csv
+    deeper: 0.38160      # non-FE, 200 iters lr0.05 (user LB). submit submission_darts_lgbm_deeper.csv
     xgb: 0.38202         # FE on; user LB. submit submission_darts_xgb_lgbm.csv
     sub3: 0.38298        # FE on; user LB. submit submission_darts_lgbm_subsampled_3seed.csv
     cat_deep: 0.38248    # non-FE, 200 iters lr0.05 (user LB). submit submission_darts_cat_deeper.csv
@@ -241,7 +243,7 @@ ensemble:
   # LB-anchored sigma for each of the 4 legs (order defines blend leg order).
   # sigma = Kaggle LB score of submitting the named CSV.
   leg_sigma:
-    family: 0.38042        # est sau khi cat_deep cải thiện (alpha=0.75); xác nhận bằng cách nộp submission_family.csv
+    family: 0.37962        # est sau khi cat_deep cải thiện (alpha=0.75); xác nhận bằng cách nộp submission_family.csv
     chronos2-cov: 0.39772  # submit submission_chronos2_cov_promo_oil_hol.csv
     lgbm-reg: 0.47682      # submit submission_v8_reg.csv
     tsmixer: 0.38191       # submit submission_tsmixer_tuned.csv
