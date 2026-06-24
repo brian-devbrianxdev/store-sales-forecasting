@@ -209,7 +209,7 @@ chronos:
 # here are the upstream reference scores — REPLACE them with your own.
 # -----------------------------------------------------------------------------
 ensemble:
-  family_alpha: 0.5
+  family_alpha: 0.75
   family_out_file: submission_family.csv
   out_file: submission_fam_cov_v8_tsmTuned_4way.csv
   # The 6 gradient-boosted-tree submissions making up the `family` sub-blend.
@@ -238,7 +238,7 @@ ensemble:
   # LB-anchored sigma for each of the 4 legs (order defines blend leg order).
   # sigma = Kaggle LB score of submitting the named CSV.
   leg_sigma:
-    family: 0.38120        # submit submission_family.csv (the family sub-blend, from `blend build`)
+    family: 0.38104        # submit submission_family.csv (the family sub-blend, from `blend build`; alpha=0.75)
     chronos2-cov: 0.39772  # submit submission_chronos2_cov_promo_oil_hol.csv
     lgbm-reg: 0.47682      # submit submission_v8_reg.csv
     tsmixer: 0.38191       # submit submission_tsmixer_tuned.csv
