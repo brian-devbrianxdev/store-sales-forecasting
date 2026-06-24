@@ -148,6 +148,8 @@ darts_family:
     cat_deep:
       cat_only: true
       depth: 8
+      n_estimators: 200          # 2x mặc định (100) — thêm capacity, tránh overfit/quá lâu của 400
+      lr: 0.05                   # giữa baseline 0.065 và 0.035, hợp với 200 vòng
       advanced_feats: false
       out_name: submission_darts_cat_deeper.csv
 
@@ -228,7 +230,7 @@ ensemble:
     deeper: 0.38269      # non-FE. submit submission_darts_lgbm_deeper.csv
     xgb: 0.38202         # FE on; user LB. submit submission_darts_xgb_lgbm.csv
     sub3: 0.38298        # FE on; user LB. submit submission_darts_lgbm_subsampled_3seed.csv
-    cat_deep: 0.38659    # non-FE. submit submission_darts_cat_deeper.csv
+    cat_deep: 0.38248    # non-FE, 200 iters lr0.05 (user LB). submit submission_darts_cat_deeper.csv
     weighted: 0.38604    # non-FE. submit submission_darts_lgbm_w.csv
   # The 3 single-CSV legs of the final 4-way blend (the 4th is `family`).
   leg_files:
@@ -239,7 +241,7 @@ ensemble:
   # LB-anchored sigma for each of the 4 legs (order defines blend leg order).
   # sigma = Kaggle LB score of submitting the named CSV.
   leg_sigma:
-    family: 0.38104        # submit submission_family.csv (the family sub-blend, from `blend build`; alpha=0.75)
+    family: 0.38042        # est sau khi cat_deep cải thiện (alpha=0.75); xác nhận bằng cách nộp submission_family.csv
     chronos2-cov: 0.39772  # submit submission_chronos2_cov_promo_oil_hol.csv
     lgbm-reg: 0.47682      # submit submission_v8_reg.csv
     tsmixer: 0.38191       # submit submission_tsmixer_tuned.csv
