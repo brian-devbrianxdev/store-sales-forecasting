@@ -101,7 +101,8 @@ def build_long(tr: pd.DataFrame, te: pd.DataFrame, oil: pd.DataFrame,
 
 
 def make_series(full: pd.DataFrame, anchor: pd.Timestamp, model_name: str,
-                epochs: int, gpu: bool, mps: bool = False) -> pd.DataFrame:
+                epochs: int, gpu: bool, mps: bool = False,
+                icl: int | None = None, batch_size: int | None = None) -> pd.DataFrame:
     """Build per-series darts inputs, fit the model, and return predictions.
 
     Args:
@@ -161,8 +162,10 @@ def make_series(full: pd.DataFrame, anchor: pd.Timestamp, model_name: str,
     seed = _cfg.neural.seed
     use_mps = (not gpu) and mps and torch.backends.mps.is_available()
     accel = "gpu" if gpu else ("mps" if use_mps else "cpu")
-    common = dict(input_chunk_length=_cfg.neural.input_chunk_length, output_chunk_length=H,
-                  n_epochs=epochs, batch_size=_cfg.neural.batch_size, random_state=seed,
+    icl = icl or _cfg.neural.input_chunk_length
+    bs = batch_size or _cfg.neural.batch_size
+    common = dict(input_chunk_length=icl, output_chunk_length=H,
+                  n_epochs=epochs, batch_size=bs, random_state=seed,
                   pl_trainer_kwargs={"accelerator": accel,
                                      "devices": [0] if gpu else 1,
                                      "enable_progress_bar": False, "enable_model_summary": False})
@@ -237,7 +240,8 @@ def make_series(full: pd.DataFrame, anchor: pd.Timestamp, model_name: str,
 
 
 def run(model_name: str, epochs: int, gpu: bool, mps: bool = False,
-        out_name: str | None = None) -> None:
+        out_name: str | None = None,
+        icl: int | None = None, batch_size: int | None = None) -> None:
     """Train one neural model and write its submission CSV into ``submissions/``.
 
     Args:
@@ -256,7 +260,7 @@ def run(model_name: str, epochs: int, gpu: bool, mps: bool = False,
     print(f"long df {full.shape}", flush=True)
 
     print("[TEST]")
-    tdf = make_series(full, TEST_START, model_name, epochs, gpu, mps)
+    tdf = make_series(full, TEST_START, model_name, epochs, gpu, mps, icl=icl, batch_size=batch_size)
     sub = te.merge(tdf[["date", "store_nbr", "family", "pred_log"]],
                    on=["date", "store_nbr", "family"], how="left")
     sub["sales"] = np.expm1(sub["pred_log"]).clip(lower=0).fillna(0.0)
@@ -274,8 +278,13 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--mps", action="store_true", help="prefer Apple MPS when not on GPU")
     ap.add_argument("--out-name", default=None,
                      help="output filename (default submission_{model}.csv)")
+    ap.add_argument("--icl", type=int, default=None,
+                     help="input_chunk_length override (default from config; lower = faster)")
+    ap.add_argument("--batch-size", type=int, default=None,
+                     help="batch size override (default from config; higher = fewer steps/epoch)")
     args = ap.parse_args(argv)
-    run(args.model, args.epochs, gpu=not args.cpu, mps=args.mps, out_name=args.out_name)
+    run(args.model, args.epochs, gpu=not args.cpu, mps=args.mps, out_name=args.out_name,
+        icl=args.icl, batch_size=args.batch_size)
 
 
 if __name__ == "__main__":

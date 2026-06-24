@@ -211,7 +211,7 @@ chronos:
 ensemble:
   family_alpha: 0.75
   family_out_file: submission_family.csv
-  out_file: submission_fam_cov_v8_tsmTuned_4way.csv
+  out_file: submission_fam_cov_v8_tsm_tide_5way.csv
   # The 6 gradient-boosted-tree submissions making up the `family` sub-blend.
   family_files:
     base: submission_darts_lgbm.csv
@@ -235,6 +235,7 @@ ensemble:
     chronos2-cov: submission_chronos2_cov_promo_oil_hol.csv
     lgbm-reg: submission_v8_reg.csv
     tsmixer: submission_tsmixer_tuned.csv
+    tide: submission_tide.csv
   # LB-anchored sigma for each of the 4 legs (order defines blend leg order).
   # sigma = Kaggle LB score of submitting the named CSV.
   leg_sigma:
@@ -242,3 +243,4 @@ ensemble:
     chronos2-cov: 0.39772  # submit submission_chronos2_cov_promo_oil_hol.csv
     lgbm-reg: 0.47682      # submit submission_v8_reg.csv
     tsmixer: 0.38191       # submit submission_tsmixer_tuned.csv
+    tide: 0.39136          # submit submission_tide.csv (TiDE neural, fast profile)
