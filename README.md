@@ -1,9 +1,10 @@
 # Store Sales — Time Series Forecasting
 
 A modular pipeline for the Kaggle *Store Sales — Time Series Forecasting*
-competition. It trains four complementary forecasting legs and combines them
-with a **minimum-variance ensemble blend** (in `log1p` space). The metric is
-RMSLE; the final score comes from submitting the blended CSV to Kaggle.
+competition. It trains five complementary forecasting legs (family GBT,
+Chronos-2, LightGBM-v8, TSMixer, TiDE) and combines them with a
+**minimum-variance ensemble blend** (in `log1p` space). The metric is RMSLE;
+the final score comes from submitting the blended CSV to Kaggle.
 
 ---
 
@@ -39,7 +40,7 @@ src/store_sales/
     chronos2_cov.py          #   - Chronos-2 with covariates (needs .venv_chronos2)
   ensemble/
     blend.py                 # min-variance math (cov reconstruction + weights)
-    build.py                 # build the final 4-way + family CSVs; verify byte-exact
+    build.py                 # build the final 5-way + family CSVs; verify byte-exact
 store_sales_forecasting_local.ipynb   # Vietnamese course report; orchestrates the CLI
 data/                        # raw competition CSVs (train.csv via Git LFS)
 submissions/                 # per-leg prediction CSVs + the final blend
@@ -73,10 +74,11 @@ the committed leg CSVs. Training the legs needs the `[train]` extras.
 store-sales train darts-family --variant base      # also: deeper xgb subsampled weighted cat_deep
 store-sales train lgbm-v8 --suffix reg
 store-sales train tsmixer --epochs 30
+store-sales train neural --model tide --epochs 30   # extra neural leg (also: --model nhits)
 store-sales train catboost
 
 # build / check the ensemble
-store-sales blend build        # write submission_family.csv + the final 4-way CSV
+store-sales blend build        # write submission_family.csv + the final 5-way CSV
 store-sales blend verify       # assert byte-exact reproduction of the committed blend
 
 store-sales run-all            # every in-process leg (darts + v8 + tsmixer), then build
@@ -138,12 +140,14 @@ number. Workflow:
 1. Submit the **6 darts member CSVs** → fill `ensemble.family_sigma`.
 2. `store-sales blend build` writes `submission_family.csv`; submit it →
    `ensemble.leg_sigma.family`.
-3. Submit `submission_chronos2_cov_promo.csv`, `submission_v8_reg.csv`,
-   `submission_tsmixer_tuned.csv` → the other three `leg_sigma` values.
+3. Submit `submission_chronos2_cov_promo_oil_hol.csv`, `submission_v8_reg.csv`,
+   `submission_tsmixer_tuned.csv`, `submission_tide.csv` → the other four
+   `leg_sigma` values.
 4. Re-run `blend build` with the final sigmas → writes
-   `submission_fam_cov_v8_tsmTuned_4way.csv`.
+   `submission_fam_cov_v8_tsm_tide_5way.csv`.
 5. **Submit that file** → its Kaggle LB score is the project's final RMSLE
-   (upstream reference ≈ **0.37418**).
+   (this pipeline reaches **0.37404**, beating the upstream reference 0.37408 /
+   0.37418).
 
 The `math_LB` value printed by `blend build` is only an *estimate* — the official
 RMSLE is the Kaggle score of the submitted blend.
@@ -153,7 +157,7 @@ RMSLE is the Kaggle score of the submitted blend.
 ## 6. Reproducibility
 
 `blend verify` rebuilds the blend from the committed leg CSVs and asserts a
-byte-exact match against `submissions/submission_fam_cov_v8_tsmTuned_4way.csv`.
+byte-exact match against `submissions/submission_fam_cov_v8_tsm_tide_5way.csv`.
 The minimum-variance math reconstructs each leg's error covariance from its LB
 sigma plus pairwise prediction differences — no ground-truth labels needed:
 
