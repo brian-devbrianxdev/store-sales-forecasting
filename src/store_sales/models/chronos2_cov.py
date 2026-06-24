@@ -1,4 +1,4 @@
-"""Chronos-2 conditioned on covariates — improve the champion's keeper expert.
+"""Chronos-2 conditioned on covariates (the Chronos leg of the ensemble).
 
 The plain Chronos-2 leg runs zero-shot on the raw sales context only
 (:mod:`store_sales.models.chronos2`). Chronos-2 v2.x supports covariates via

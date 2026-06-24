@@ -146,8 +146,7 @@ number. Workflow:
 4. Re-run `blend build` with the final sigmas → writes
    `submission_fam_cov_v8_tsm_tide_5way.csv`.
 5. **Submit that file** → its Kaggle LB score is the project's final RMSLE
-   (this pipeline reaches **0.37404**, beating the upstream reference 0.37408 /
-   0.37418).
+   (this pipeline reaches **0.37379** on the public leaderboard).
 
 The `math_LB` value printed by `blend build` is only an *estimate* — the official
 RMSLE is the Kaggle score of the submitted blend.

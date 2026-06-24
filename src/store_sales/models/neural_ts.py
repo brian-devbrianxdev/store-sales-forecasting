@@ -1,8 +1,8 @@
 """Global neural time-series forecaster (darts TSMixer / TiDE / NHiTS).
 
 Fits ONE global model across all (store, family) series with covariates,
-producing test predictions (anchor 2017-08-16). ``--model tsmixer`` reproduces
-the tuned TSMixer leg used by the champion ensemble.
+producing test predictions (anchor 2017-08-16). ``--model tsmixer`` is the
+tuned TSMixer leg of the ensemble; ``--model tide`` / ``nhits`` add diversity.
 
 Target = ``log1p(sales)``. Future covs: onpromotion, oil (ffill), calendar,
 holiday flag. Past covs: transactions. Static: family/city/state/type/cluster.

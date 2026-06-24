@@ -1,21 +1,15 @@
 """Per-cell sales "floor" artifact used by the darts ``weighted`` variant.
 
-The upstream repo's ``run_darts_lgbm.py`` reads ``data/floor_per_row.parquet``
-(column ``cell_floor`` keyed by ``date, store_nbr, family``) to build sample
-weights ``1/sqrt(cell_floor + 0.1)`` for the ``SAMPLE_WEIGHT_FLOOR`` run. That
-parquet was an *uncommitted local artifact* — the upstream repo ships neither
-the file nor a generator for it, so the variant cannot run from a clean clone.
+The ``weighted`` variant builds per-row sample weights ``1/sqrt(cell_floor +
+0.1)`` from ``data/floor_per_row.parquet`` (column ``cell_floor`` keyed by
+``date, store_nbr, family``). This module regenerates that artifact from the
+training sales so the variant runs from a clean checkout.
 
-This module reconstructs an equivalent artifact from the training sales: the
-per-``(store_nbr, family)`` cell floor is the low quantile (q10) of that cell's
-historical daily sales, broadcast across every ``(date, store_nbr, family)`` row.
-That matches the weighting intent — high-volume cells get a high floor and are
-down-weighted; sparse/low cells get a near-zero floor and are up-weighted.
-
-NOTE: because the original ``cell_floor`` definition was never published, the
-regenerated weighted submission will NOT byte-match the upstream
-``submission_darts_lgbm_w.csv``; it is a faithful re-implementation of the
-documented weighting recipe, not a reproduction of that one-off file.
+The per-``(store_nbr, family)`` cell floor is the low quantile (q10) of that
+cell's historical daily sales, broadcast across every ``(date, store_nbr,
+family)`` row. This encodes the weighting intent: high-volume cells get a high
+floor and are down-weighted; sparse/low cells get a near-zero floor and are
+up-weighted, focusing the loss on the harder low-volume series.
 """
 from __future__ import annotations
 

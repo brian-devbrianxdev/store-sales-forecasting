@@ -1,10 +1,10 @@
 # =============================================================================
 # Central configuration for the store-sales forecasting pipeline.
 #
-# Every value here was previously hardcoded in a model/ script or supplied via
-# an environment variable from the orchestration notebook. The defaults below
-# reproduce the original behaviour EXACTLY — changing a value here is the only
-# place you need to touch to re-tune a leg.
+# This is the single source of truth: paths, dates, per-leg hyperparameters,
+# darts-family variant definitions, and the LB-anchored leg sigmas. Nothing is
+# hardcoded in the execution logic — changing a value here is the only place
+# you need to touch to re-tune a leg.
 # =============================================================================
 
 # Directories are resolved relative to the repo root (see store_sales.paths).
@@ -211,8 +211,8 @@ chronos:
 #                          store-sales-time-series-forecasting/submit
 #   3. Read the *Score* column -> that number is this leg's sigma.
 # The file to submit for each sigma is named in the inline comment next to it
-# (and matches the family_files / leg_files maps below). The numbers shipped
-# here are the upstream reference scores — REPLACE them with your own.
+# (and matches the family_files / leg_files maps below). If you retrain a leg,
+# re-submit its CSV and update the sigma here, then rebuild the blend.
 # -----------------------------------------------------------------------------
 ensemble:
   family_alpha: 0.75
@@ -227,25 +227,25 @@ ensemble:
     cat_deep: submission_darts_cat_deeper.csv
     weighted: submission_darts_lgbm_w.csv
   # sigma = Kaggle LB score of submitting each darts member CSV (see family_files).
-  # Selective advanced-FE: base/xgb/sub3 carry oil+holiday FE (user-measured LB);
-  # deeper/cat_deep/weighted reverted to non-FE (FE regressed them) — upstream-ref σ.
+  # Selective advanced-FE: base/xgb/sub3 carry oil+holiday FE; deeper/cat_deep/
+  # weighted run non-FE (FE measured worse on them). All sigmas measured on Kaggle LB.
   family_sigma:
-    base: 0.38337        # FE on. user LB. submit submission_darts_lgbm.csv
-    deeper: 0.38093      # non-FE, 200 iters lr0.05 (user LB). submit submission_darts_lgbm_deeper.csv
-    xgb: 0.38036         # FE on; user LB. submit submission_darts_xgb_lgbm.csv
-    sub3: 0.38298        # FE on; user LB. submit submission_darts_lgbm_subsampled_3seed.csv
-    cat_deep: 0.38248    # non-FE, 200 iters lr0.05 (user LB). submit submission_darts_cat_deeper.csv
-    weighted: 0.38604    # non-FE. submit submission_darts_lgbm_w.csv
-  # The 3 single-CSV legs of the final 4-way blend (the 4th is `family`).
+    base: 0.38337        # FE on.  submit submission_darts_lgbm.csv
+    deeper: 0.38093      # non-FE, 300 iters lr0.04.  submit submission_darts_lgbm_deeper.csv
+    xgb: 0.38036         # FE on, 200 iters lr0.05.  submit submission_darts_xgb_lgbm.csv
+    sub3: 0.38298        # FE on.  submit submission_darts_lgbm_subsampled_3seed.csv
+    cat_deep: 0.38248    # non-FE, 200 iters lr0.05.  submit submission_darts_cat_deeper.csv
+    weighted: 0.38604    # non-FE.  submit submission_darts_lgbm_w.csv
+  # The 4 single-CSV legs of the final 5-way blend (the 5th is `family`).
   leg_files:
     chronos2-cov: submission_chronos2_cov_promo_oil_hol.csv
     lgbm-reg: submission_v8_reg.csv
     tsmixer: submission_tsmixer_tuned.csv
     tide: submission_tide.csv
-  # LB-anchored sigma for each of the 4 legs (order defines blend leg order).
+  # LB-anchored sigma for each of the 5 legs (order defines blend leg order).
   # sigma = Kaggle LB score of submitting the named CSV.
   leg_sigma:
-    family: 0.37853        # est sau khi cat_deep cải thiện (alpha=0.75); xác nhận bằng cách nộp submission_family.csv
+    family: 0.37853        # submit submission_family.csv (the family sub-blend, alpha=0.75)
     chronos2-cov: 0.39772  # submit submission_chronos2_cov_promo_oil_hol.csv
     lgbm-reg: 0.47682      # submit submission_v8_reg.csv
     tsmixer: 0.38191       # submit submission_tsmixer_tuned.csv

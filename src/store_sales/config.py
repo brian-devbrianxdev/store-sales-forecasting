@@ -73,8 +73,7 @@ class DartsFamily:
         """Return the fully-resolved settings for one named variant.
 
         The ``base`` block holds every default; the named variant supplies only
-        its overrides. The merged dict reproduces the env-var combination the
-        notebook used for that submission.
+        its overrides. The merged dict is the full settings for that variant.
 
         Args:
             name: One of the keys in ``variants`` (e.g. ``"deeper"``).
@@ -107,7 +106,7 @@ class Neural:
     tide: dict[str, Any]
     nhits: dict[str, Any]
     # A/B gate for the shared advanced oil/holiday FE (common_features). Default
-    # False keeps the champion TSMixer leg byte-identical; flip to A/B test.
+    # False keeps the tuned TSMixer leg byte-identical; flip to A/B test.
     use_advanced_feats: bool = False
 
 

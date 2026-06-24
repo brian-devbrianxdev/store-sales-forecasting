@@ -1,10 +1,10 @@
-"""Assemble the final 4-way submission and verify byte-exact reproduction.
+"""Assemble the final ensemble submission and verify reproducibility.
 
 This is the only stage that runs end-to-end without retraining: it reads the
-committed leg CSVs, computes the minimum-variance blend, and writes
-``submission_fam_cov_v8_tsmTuned_4way.csv``. ``--verify`` rebuilds the blend and
-asserts a byte-exact match against the committed file — the regression gate for
-the whole pipeline.
+leg CSVs, computes the minimum-variance blend, and writes the final ensemble
+CSV (``ensemble.out_file``). ``--verify`` rebuilds the blend and asserts a
+byte-exact match against the written file — the regression gate for the
+whole pipeline.
 """
 from __future__ import annotations
 
@@ -21,10 +21,10 @@ from . import blend
 
 
 def build(cfg: Config | None = None) -> pd.DataFrame:
-    """Compute the 4-way blend and return it as an ``(id, sales)`` frame.
+    """Compute the blend and return it as an ``(id, sales)`` frame.
 
     Prints the blend weights, the formula RMSLE estimate, and the
-    family↔tsmixer redundancy diagnostic, mirroring the original script.
+    family↔tsmixer redundancy diagnostic.
 
     Args:
         cfg: Optional config; defaults to the process-wide cached config.
@@ -40,7 +40,7 @@ def build(cfg: Config | None = None) -> pd.DataFrame:
         for leg, w in zip(blend_result["legs"], blend_result["weights"])
     ))
     print(f"math_LB = {blend_result['blend_rmsle_formula']:.5f}  "
-          f"[reference actual LB 0.37418]")
+          f"(formula estimate)")
     fam = blend_result["legs"].index("family")
     tsm = blend_result["legs"].index("tsmixer")
     print(f"diff family<->tsmixer = {blend_result['rms_diff'][fam, tsm]:.3f} "
@@ -51,13 +51,13 @@ def build(cfg: Config | None = None) -> pd.DataFrame:
 
 
 def run_build(cfg: Config | None = None) -> Path:
-    """Build the 4-way blend and the family sub-blend, writing both CSVs.
+    """Build the ensemble blend and the family sub-blend, writing both CSVs.
 
     Args:
         cfg: Optional config; defaults to the process-wide cached config.
 
     Returns:
-        Path to the 4-way submission that was written.
+        Path to the ensemble submission that was written.
     """
     cfg = cfg or get_config()
     out_file = cfg.ensemble.out_file
@@ -75,13 +75,13 @@ def run_build(cfg: Config | None = None) -> Path:
 
 
 def verify(cfg: Config | None = None) -> bool:
-    """Rebuild the blend and assert a byte-exact match vs the committed CSV.
+    """Rebuild the blend and assert a byte-exact match vs the on-disk CSV.
 
     Args:
         cfg: Optional config; defaults to the process-wide cached config.
 
     Returns:
-        ``True`` iff the rebuilt blend matches the committed submission to
+        ``True`` iff the rebuilt blend matches the on-disk submission to
         within ``1e-6`` absolute on every row.
     """
     cfg = cfg or get_config()
@@ -99,7 +99,7 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--verify", action="store_true",
-        help="rebuild and assert byte-exact match vs the committed submission; "
+        help="rebuild and assert byte-exact match vs the on-disk submission; "
              "do not overwrite",
     )
     args = parser.parse_args(argv)
